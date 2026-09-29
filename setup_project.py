@@ -24,7 +24,9 @@ def main():
     run(PYTHON, "-m", "pip", "install", "-r", ROOT / "requirements-lock.txt")
     run(PYTHON, "-m", "pip", "check")
     run(PYTHON, "-c", "from model import build; p=build(); assert p.val().isValid(); print('CAD model validation passed.')")
-    print("Setup complete. Open Design.code-workspace, then follow README.md.")
+    for folder in ("exports/parts", "exports/assemblies", "exports/reports", "logs"):
+        (ROOT / folder).mkdir(parents=True, exist_ok=True)
+    print("Setup complete. Open this project folder in VS Code, then follow README.md.")
 
 if __name__ == "__main__":
     try:

@@ -2,3 +2,11 @@
 .venv-old/
 __pycache__/
 *.log
+logs/*
+!logs/.gitkeep
+exports/parts/*
+!exports/parts/.gitkeep
+exports/assemblies/*
+!exports/assemblies/.gitkeep
+exports/reports/*
+!exports/reports/.gitkeep

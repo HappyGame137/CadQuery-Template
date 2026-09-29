@@ -9,5 +9,5 @@ if errorlevel 1 (
   exit /b 1
 )
 echo.
-echo Ready. Open Design.code-workspace in VS Code.
+echo Ready. Open this project folder in VS Code using File - Open Folder.
 pause
