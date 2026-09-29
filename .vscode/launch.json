@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [{
+    "name": "CAD: Live preview",
+    "type": "debugpy",
+    "request": "launch",
+    "program": "${workspaceFolder}/preview.py",
+    "python": "${workspaceFolder}/.venv/Scripts/python.exe",
+    "console": "integratedTerminal",
+    "cwd": "${workspaceFolder}",
+    "justMyCode": true
+  }]
+}

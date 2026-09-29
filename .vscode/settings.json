@@ -1,0 +1,9 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.terminal.activateEnvironment": true,
+  "OcpCadViewer.advanced.autostart": true,
+  "OcpCadViewer.advanced.initialPort": 3939,
+  "OcpCadViewer.view.reset_camera": "KEEP",
+  "files.exclude": {"**/__pycache__": true},
+  "search.exclude": {"**/.venv": true}
+}
