@@ -1,130 +1,118 @@
 # CadQuery 设计项目模板（Windows）
 
-把整个模板复制到你想要的目录，双击初始化，即可开始设计。模板不包含虚拟环境，每个新项目都会建立自己的 `.venv`，不会向全局 Python 安装依赖。
+参考 CPTMagnetometerPhysicalComponent 的目录组织：建模入口保留在根目录，零件、装配、验证报告和运行日志分别存放。直接用 VS Code 打开项目文件夹。
 
-## 第一次：用模板新建项目
-
-### 1. 复制并命名
-
-复制整个 `CadQuery-Template` 文件夹到目标位置，然后改成项目名称，例如：
+## 项目目录
 
 ```text
-D:\机械设计\气室支架
+CadQuery-Template/
+├─ model.py                  参数化几何；必须保留 build()
+├─ preview.py                保存后刷新预览，默认端口 3939
+├─ export.py                 导出 STEP / STL 并验证
+├─ Initialize.cmd            Windows 双击初始化入口
+├─ setup_project.py          创建项目独立的 Python 环境
+├─ requirements-lock.txt     固定依赖版本
+├─ AGENTS.md                 AI 编辑约定
+├─ README.md
+├─ .gitignore
+├─ .vscode/                  文件夹级 VS Code 配置
+│  ├─ extensions.json
+│  ├─ settings.json
+│  ├─ launch.json
+│  └─ tasks.json
+├─ exports/
+│  ├─ parts/                 独立零件 STEP / STL
+│  ├─ assemblies/            可选装配 STEP / STL
+│  └─ reports/               validation.json
+├─ logs/                     preview.log 及轮转日志
+└─ .venv/                    初始化后生成，不随模板分发
 ```
 
-请复制整个文件夹，保留其中的 `.vscode` 文件夹。不要把自己的设计直接写在模板原件里。
+空目录通过 `.gitkeep` 保留。生成的导出文件、报告、日志和虚拟环境默认不进入 Git；需要交付时可单独打包 `exports/`。
 
-### 2. 双击 Initialize.cmd
+## 从模板新建项目
 
-在新项目文件夹中双击 `Initialize.cmd`。
+1. 复制源文件及 `.vscode`、`exports`、`logs` 中的 `.gitkeep`，将文件夹改为新项目名称。不要复制 `.git`、`.venv`、`.venv-old`、`__pycache__` 或已有导出和日志。
+2. 安装 Python 3.12 x64（含 Python Launcher）、VS Code，以及 `.vscode/extensions.json` 推荐的 Python、Python Debugger、Pylance、OCP CAD Viewer 扩展。
+3. 在新项目中双击 `Initialize.cmd`，或在终端执行：
 
-它会调用本机 Python 3.12，在此项目建立 `.venv`，安装已固定版本的 CadQuery 和 OCP 预览依赖，并检查测试模型。第一次需要联网，通常需要几分钟。看到 `Setup complete` 即表示成功；出错时窗口会保留错误信息。
+   ```powershell
+   py -3.12 setup_project.py
+   ```
 
-同一项目通常只需初始化一次。重复运行会复用已有环境，并按照锁定版本检查或安装依赖。
+   初始化会在本项目创建 `.venv`、安装锁定依赖、检查依赖和示例模型、补齐输出目录。不会向全局 Python 安装依赖；重复运行会复用已有环境。
+4. 在 VS Code 选择“文件 → 打开文件夹”，选择新项目的根目录。也可以在项目终端运行 `code .`。确认信任提示中的路径后再信任。
+5. 执行 `Python: Select Interpreter`，选择 `.venv\Scripts\python.exe`。项目已设置该默认路径，无需手动激活环境或修改 PowerShell 执行策略。
 
-如果更喜欢命令行，在新项目文件夹的终端运行：
+## 日常建模与预览
+
+1. 打开项目文件夹，执行 `OCP CAD Viewer: Open viewer`；已有查看器时直接使用。
+2. 按 `Ctrl+F5` 启动 `CAD: Live preview`，或从“终端 → 运行任务”启动同名任务。两种方式选择一种，每个项目仅运行一个监听进程。
+3. 修改并保存 `model.py`。预览自动重建，尽量保留相机角度；AI 在外部保存文件也会触发刷新。
+4. 设计确认后按 `Ctrl+Shift+B` 导出。
+5. 在预览终端按 `Ctrl+C` 停止监听。
+
+预览只监听 `model.py`。零件函数和装配函数也放在此文件；拆分模块前需要扩展依赖监听与重载逻辑。预览错误记录在终端及 `logs/preview.log`，修正并保存后重试。日志达到约 2 MB 时轮转，最多保留两份备份。预览不会自动导出。
+
+默认示例保持为 60 × 40 × 8 mm 圆角安装板，中心孔 Ø10，四个安装孔 Ø4.5，`build()` 返回 CadQuery Workplane。示例用于验证流程，不代表制造校核完成。
+
+## 零件与装配接口
+
+只有 `build()` 时，导出脚本将其作为单实体零件，生成 `exports/parts/model.step` 和 `model.stl`。可在 `model.py` 设置 `MODEL_NAME` 修改零件文件名和预览标签。
+
+多零件项目可在同一个 `model.py` 中添加以下接口：
+
+```python
+MODEL_NAME = "mounting_plate"
+ASSEMBLY_NAME = "mounting_assembly"
+
+
+def build_parts():
+    # 每个值必须是包含一个有效实体的 Workplane 或 Shape。
+    # 独立零件使用自身坐标，装配位置在 build_assembly() 中设置。
+    return {"mounting_plate": build_plate(), "spacer": build_spacer()}
+
+
+def build_assembly():
+    assembly = cq.Assembly(name=ASSEMBLY_NAME)
+    assembly.add(build_plate(), name="mounting_plate")
+    assembly.add(build_spacer(), name="spacer", loc=cq.Location(cq.Vector(0, 0, 8)))
+    return assembly
+
+
+def build():
+    return cq.Workplane("XY").newObject([build_assembly().toCompound()])
+```
+
+这是接口示意，需自行实现 `build_plate()` 和 `build_spacer()`。始终保留 `build()`，并让它与 `build_assembly()` 表示同一模型。导出脚本使用 `build_parts()` 的字典键命名各零件，名称应在 Windows 下唯一、可作为文件名，支持中文。
+
+存在 `build_assembly()` 时，预览显示装配，导出同时生成 `exports/assemblies/<ASSEMBLY_NAME>.step` 和 `.stl`；未指定装配名称时使用 `assembly`。STEP 保留零件名称、颜色和位置，STL 仅保留网格几何。单零件模板默认不生成重复的装配文件。
+
+## 导出与验证
+
+在项目根目录运行，或按 `Ctrl+Shift+B`：
 
 ```powershell
-py -3.12 setup_project.py
+.\.venv\Scripts\python.exe export.py
 ```
 
-### 3. 打开项目
+验证报告位于 `exports/reports/validation.json`，包含单位、文件相对路径、实体数、包围盒尺寸、体积、STEP 回读结果和 STL 三角形数量。
 
-双击 `Design.code-workspace`，用 VS Code 打开。你可以将它改名为 `气室支架.code-workspace`，无需修改里面的内容。
+导出会检查有效实体、独立零件的单实体约束、STEP 回读实体数量与体积，以及二进制 STL 的长度和三角形数量。导出过程出错会记录 `valid: false` 并以失败状态退出。上述检查不等同于制造校核或 STL 完整网格质量检查；多零件项目需按实际设计增加装配干涉检查。
 
-首次出现工作区信任提示时，确认路径是自己创建的项目，再信任它。
-
-本机已安装所需 VS Code 扩展：Python、Python Debugger、Pylance、OCP CAD Viewer。换电脑时需要先安装 Python 3.12（含 Python Launcher）、VS Code，以及这些扩展；模板不会安装这些系统软件。固定依赖面向 Windows x64 / Python 3.12。
-
-### 4. 选择项目解释器
-
-打开 `model.py`，按 `Ctrl+Shift+P`，执行 `Python: Select Interpreter`，选择当前项目下的：
-
-```text
-.venv\Scripts\python.exe
-```
-
-项目已提供默认解释器设置。若列表里没有该环境，选择输入解释器路径并找到这个文件。
-
-### 5. 开启实时预览
-
-按 `Ctrl+Shift+P`，执行 `OCP CAD Viewer: Open viewer`，打开三维查看器；如果查看器已自动出现，则跳过此步。
-
-按 `Ctrl+F5`，运行 `CAD: Live preview`。每次工作会话启动一次即可，不要重复启动。
-
-修改 `model.py` 顶部的尺寸并保存。模型会自动重建，包括 Codex/Claude 在外部保存文件的情况。鼠标可在查看器中旋转、缩放模型；更新时尽量保留观察角度。
-
-首次启动会加载几何内核，后续改动复用常驻进程。更新速度取决于模型复杂度，不是逐帧连续求解。
-
-## 平常怎么使用
-
-1. 打开这个设计自己的 workspace 文件。
-2. 打开查看器，按 `Ctrl+F5` 启动预览。
-3. 自己或让 AI 编辑 `model.py`，保存后查看变化。
-4. 满意后按 `Ctrl+Shift+B` 导出。
-5. 停止预览时，在对应预览终端按 `Ctrl+C`。重新打开 VS Code 后重新启动预览。
-
-不需要再次初始化，也不需要手动激活虚拟环境或修改 PowerShell 执行策略。
-
-## 如何让 AI 帮你设计
-
-在这个项目的 AI 对话中说明要修改 `model.py`，例如：
-
-> 请修改当前项目的 model.py：把板厚改为 6 mm，中心孔改为直径 12 mm，保留四个安装孔。保留 build() 接口，保存文件，让已有预览自动更新。
-
-所有长度默认使用毫米。复杂结构可分几次描述，先看大致形状，再逐步补充孔位、圆角、壁厚。位置说不清时，可提供带标记的截图。
-
-`AGENTS.md` 提供给支持该文件的 AI 编程工具。无论使用什么 AI，实际被保存的文件都需要位于当前项目中。
-
-## 导出 STEP / STL
-
-按 `Ctrl+Shift+B` 执行 `CAD: Export STEP and STL`，或从“终端 → 运行任务”中选择同名任务。导出文件位于：
-
-```text
-exports/
-  model.step       供 CAD 软件交换使用
-  model.stl        供切片/3D 打印使用
-  validation.json 导出验证结果
-```
-
-预览不会自动导出。每次确认设计后重新导出，避免使用旧文件。导出脚本默认检查单一实体、STEP 回读体积及 STL 文件结构；若以后设计多零件装配，需要相应调整导出脚本。
-
-## 文件结构
-
-| 文件 | 用途 |
-|---|---|
-| `model.py` | 设计源文件；尺寸参数和 `build()` 建模函数 |
-| `preview.py` | 监听保存并更新预览 |
-| `export.py` | 导出及基础有效性检查 |
-| `Initialize.cmd` / `setup_project.py` | 双击初始化入口和环境安装程序 |
-| `requirements-lock.txt` | 已验证的 Python 依赖版本 |
-| `Design.code-workspace` | VS Code 项目入口，可重命名 |
-| `.vscode/` | 解释器、预览、导出任务配置 |
-| `AGENTS.md` | AI 项目约定 |
-| `.venv/` | 初始化后生成的隔离环境，不作为模板复制 |
-| `exports/` | 导出时生成的结果 |
-
-模板示例为 60 × 40 × 8 mm 圆角板，中心孔 Ø10，四个安装孔 Ø4.5。它用于试运行，不代表已经完成工程设计或制造校核。
+每次确认几何修改后重新导出。同名输出会覆盖，已改名或移除的零件旧文件不会自动删除；本次有效输出以成功报告列出的路径为准。
 
 ## 常见问题
 
-**提示找不到 py 或 Python 3.12**：先安装含 Python Launcher 的 Python 3.12 x64。此电脑已经具备。
+- **找不到 `py` 或 Python 3.12**：安装 Python 3.12 x64 及 Python Launcher。
+- **依赖下载失败**：检查网络后重新运行初始化，不必删除项目。
+- **找不到 `cadquery` / `ocp_vscode`**：确认初始化成功并选中当前项目的解释器。必要时执行 `Developer: Reload Window`。
+- **保存后不刷新**：查看预览终端和 `logs/preview.log`，确认监听仍运行且修改的是当前项目的 `model.py`。
+- **连接不到查看器**：先打开查看器，确认它显示的端口。默认使用 3939；需要其他端口时，在 `.vscode/launch.json` 添加 `"args": ["--port", "3940"]`，任务启动方式则在 `.vscode/tasks.json` 的预览参数中添加相同选项。不要无意间启动第二个查看器。
+- **项目搬家后环境失效**：停止预览，将旧 `.venv` 改名为 `.venv-old`，在新位置重新初始化；虚拟环境不应直接搬移复用。
 
-**依赖下载失败**：检查网络，再次双击初始化即可。不会自动删除已有项目文件。
+## AI 编辑约定
 
-**找不到 cadquery / ocp_vscode**：先确认初始化成功，再选择当前项目的 `.venv` 解释器。若 VS Code 在安装完成前已打开，执行 `Developer: Reload Window` 刷新扩展状态。
+可以直接说明：“修改 model.py 的板厚为 6 mm，保留 build()，让现有预览自动更新，完成后重新导出并检查报告。”
 
-**保存后不更新**：确认预览进程仍在运行，修改的是当前项目的 `model.py`，并查看终端错误。修正错误后保存重试；必要时停止并重新启动预览。当前仅监听 `model.py`；若拆成多个模块，需要扩展监听和模块重载逻辑。
-
-**连接不到查看器**：先打开 OCP 查看器，再启动预览。默认端口为 3939。如果同时打开多个 CAD 项目，查看器可能使用 3940 等其他端口；可在 `.vscode/launch.json` 的预览配置里增加 `"args": ["--port", "3940"]`，填写状态栏显示的实际端口。通过任务启动时，相应修改 `.vscode/tasks.json` 中预览任务的参数。初学时建议一次打开一个 CAD 项目。
-
-**文件夹搬家后无法运行**：关闭预览和 VS Code，将旧 `.venv` 改名为 `.venv-old`，在新位置重新初始化。验证成功后可自行删除旧环境；不要把旧虚拟环境直接当作可搬移文件使用。
-
-**分享项目或再做模板**：复制源文件和配置，排除 `.venv`、`.venv-old`、`__pycache__`。别人可在自己的目录重新初始化。
-
-## 版本与参考
-
-基于 2026-09-29 本机验证的 Python 3.12.10、CadQuery 2.8.0、OCP CAD Viewer 4.1.0；全部 Python 依赖版本见 `requirements-lock.txt`。
-
-- [CadQuery 官方安装文档](https://cadquery.readthedocs.io/en/latest/installation.html)
-- [OCP CAD Viewer 官方项目](https://github.com/bernhard-42/vscode-ocp-cad-viewer)
+所有尺寸使用毫米，关键尺寸应定义为命名参数。具体建模和目录约定见 `AGENTS.md`。Python 依赖版本以 `requirements-lock.txt` 为准。

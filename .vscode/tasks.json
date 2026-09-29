@@ -8,6 +8,7 @@
       "args": ["-u", "${workspaceFolder}/preview.py"],
       "options": {"cwd": "${workspaceFolder}"},
       "problemMatcher": [],
+      "runOptions": {"instanceLimit": 1},
       "presentation": {"reveal": "always", "panel": "dedicated"}
     },
     {
